@@ -14,7 +14,7 @@ Le suivi de l'avencement du projet se fera sur Trello sous la forme d'un [Kanban
 
 ## Stack technique 
 
-- ElasticSearch à été choisi pour étre la base de donne. En effet ces capacité d'indexation et d'aggrégation vont étre utile pour recherche des recettes cohérante 
+- ElasticSearch a été choisi pour être la base de donne. En effet, ces capacités d'indexation et d'agrégation vont être utiles pour recherche des recettes cogérante.
 - L'API serait développé en Rust sequi me premettre de découvir se langage d'avenir
 - Les données de sortie de la base de données sera au format json
 

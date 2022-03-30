@@ -1,39 +1,53 @@
+mod test;
+mod database;
+mod route;
 use std::fmt::format;
-use rocket::{Build, Rocket};
-use rocket::tokio::time::{sleep, Duration};
+use std::future::Future;
+use elasticsearch::Elasticsearch;
+use rocket::{Build, Rocket, State};
+use rocket::tokio::runtime::Runtime;
+use crate::database::user::User;
+use crate::route::test_route::{delay, world, name};
+use crate::database::connection::client;
 
 #[macro_use] extern crate rocket;
 
-#[get("/delay/<seconds>")]
-async fn delay(seconds: u64) -> String {
-    sleep(Duration::from_secs(seconds)).await;
-    format!("waited for {} seconds", seconds)
-}
-#[get("/world")]
-async fn world() -> &'static str {
-    "Hello, world!"
-}
-#[get("/name")]
-async fn name() -> &'static str {
-    "Hello, name!"
-}
 
 #[launch]
 fn rocket() -> Rocket<Build> {
-    rocket::build().mount("/hello", routes![world, name, delay])
+    rocket::build().manage(App::new()).mount("/hello", routes![world, name, delay])
 }
 
-#[cfg(test)]
-mod test{
-    use super::rocket;
-    use rocket::local::blocking::Client;
-    use rocket::http::Status;
+pub struct App {
+    elasticsearch: Elasticsearch,
+    async_rt: Runtime,
+}
 
-    #[test]
-    fn hello_world() {
-        let client = Client::tracked(rocket()).expect("valid rocket instance");
-        let mut response = client.get("/hello/world").dispatch();
-        assert_eq!(response.status(), Status::Ok);
-        assert_eq!(response.into_string().unwrap(), "Hello, world!");
+pub type AppState<> = State<App>;
+
+impl App {
+    fn new() -> Self {
+        let rt = Runtime::new().expect("Tokio runtime can be created");
+        let elasticsearch = client().unwrap();
+
+        Self { elasticsearch, async_rt: rt }
+    }
+
+    /// Run given future in async runtime and block current thread until it resolves.
+    fn block_on<F: Future>(&self, future: F) -> F::Output {
+        self.async_rt.handle().block_on(future)
     }
 }
+
+pub(crate) trait WithElastic {
+    /// Get reference to stateful Elasticsearch client.
+    fn elasticsearch(&self) -> &Elasticsearch;
+}
+
+impl WithElastic for AppState {
+    fn elasticsearch(&self) -> &Elasticsearch {
+        &self.elasticsearch
+    }
+}
+
+

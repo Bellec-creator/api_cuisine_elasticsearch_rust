@@ -11,6 +11,6 @@ Le suivi de l'avencement du projet se fera sur Trello sous la forme d'un [Kanban
 - L'API serait développé en Rust sequi me premettre de découvir se langage d'avenir
 - Les données de sortie de la base de données sera au format json
 
-## Modèle de données
+## Modèle de données.
 
 ## Route de L'API 

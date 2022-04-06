@@ -35,7 +35,10 @@ pub async fn get_recette(app : &State<App>, ingrediant: &str) -> Result<Json<Vec
          .body(json!({
              "query": {
                  "match": {
-                     "ingredient.name": ingrediant
+                     "ingredient.name": {
+                         "query" : ingrediant,
+                         "fuzziness" : "AUTO"
+                     }
                  }
              }
          }))
@@ -68,10 +71,6 @@ pub async fn post_recette(app : &State<App>, recette: Json<Root>)-> Result<Strin
             rocket::serde::__private::Result::Err(BadRequest(Some(e.to_string())))
         }
     }
-    //let successful = post_document.ok().flatten().status_code().as_str();
-
-    //Ok(successful)
-
 }
 
 

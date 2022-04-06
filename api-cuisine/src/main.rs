@@ -6,7 +6,7 @@ use std::future::Future;
 use elasticsearch::Elasticsearch;
 use rocket::{Build, Rocket, State};
 use rocket::tokio::runtime::Runtime;
-use crate::database::recette::User;
+use crate::database::recette::Root;
 use crate::route::test_route::{delay, world, name};
 use crate::database::connection::client;
 

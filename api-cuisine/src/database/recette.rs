@@ -1,7 +1,10 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+use rocket_okapi::JsonSchema;
+
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, FromForm, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Root {
     pub titre: String,
@@ -9,7 +12,7 @@ pub struct Root {
     pub etape: Vec<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, FromForm, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Ingredient {
     pub name: String,

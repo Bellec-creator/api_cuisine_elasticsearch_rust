@@ -1,59 +1,68 @@
-use elasticsearch::{Elasticsearch, Error, http, IndexParts, SearchParts};
-use elastiql::search::{
-    query::{BooleanQuery, CompoundQuery, Query, TermQuery},
-    HighlightOptions, Request, Response, OkResponse,
-};
-use elastiql::search::query::MatchQuery;
-use rocket::http::hyper::StatusCode;
-use rocket::http::RawStr;
-use rocket::response::status::BadRequest;
-use rocket::State;
-use rocket::serde::json::Json;
-use rocket::tokio::time::{sleep, Duration};
-use rocket_okapi::{openapi, settings::OpenApiSettings, openapi_get_routes};
-use serde_json::{json, Value};
-use crate::{App, client};
 use crate::database::recette::Root;
+use crate::App;
+use elasticsearch::{Error, IndexParts, SearchParts};
+use elastiql::search::OkResponse;
+use rocket::http::{ContentType, Status};
+use rocket::response::status::Custom;
+use rocket::response::Responder;
+use rocket::serde::json::Json;
+use rocket::{response, State};
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::okapi::openapi3::Responses;
+use rocket_okapi::response::OpenApiResponderInner;
+use rocket_okapi::{openapi, openapi_get_routes, settings::OpenApiSettings, OpenApiError};
+use serde_json::json;
 
-pub fn load_route(
-    loader: rocket::Rocket<rocket::Build>,
-    settings: &OpenApiSettings
-) -> rocket::Rocket<rocket::Build> {
-    loader.mount(
-        "/api",
-        openapi_get_routes![get_recette, post_recette]
-    )
+pub enum ApiError {
+    Elastic(elasticsearch::Error),
 }
 
-#[openapi]
-#[get("/recette?<ingrediant>")]
-pub async fn get_recette(app : &State<App>, ingrediant: &str) -> Result<Json<Vec<Root>>, BadRequest<String>> {
-    let client = &app.elasticsearch;
+impl From<elasticsearch::Error> for ApiError {
+    fn from(e: Error) -> Self {
+        Self::Elastic(e)
+    }
+}
 
-    let search_response = client
-         .search(SearchParts::Index(&["recettes"]))
-         .body(json!({
-             "query": {
-                 "match": {
-                     "ingredient.name": {
-                         "query" : ingrediant,
-                         "fuzziness" : "AUTO"
-                     }
-                 }
-             }
-         }))
-         .send()
-         .await;
-    let response_body = search_response.unwrap().json::<OkResponse<Root>>().await.unwrap();
-    let hits = response_body.hits.hits.into_iter().map(|h|h.source).collect();
+//loader pour les routes et ajout des paramettre pour le swagger
+pub fn load_route(
+    loader: rocket::Rocket<rocket::Build>,
+    _settings: &OpenApiSettings,
+) -> rocket::Rocket<rocket::Build> {
+    loader.mount("/api", openapi_get_routes![get_recette, post_recette]) //montage des route sur /api
+}
+
+#[openapi] // nécessaires pour faire apparaître la route dans le swagger
+#[get("/recette?<ingrediant>")] // definition du endpoint
+pub async fn get_recette(app: &State<App>, ingrediant: &str) -> Result<Json<Vec<Root>>, ApiError> {
+    let client = &app.elasticsearch; // recuperation du state
+    let search_response = client // creation de la requête
+        .search(SearchParts::Index(&["recettes"]))
+        .body(json!({
+            "query": {
+                "match": {
+                    "ingredient.name": {
+                        "query" : ingrediant,
+                        "fuzziness" : "AUTO"
+                    }
+                }
+            }
+        }))
+        .send()
+        .await;
+    let response_body = search_response?.json::<OkResponse<Root>>().await?; // recupération de la recette
+    let hits = response_body
+        .hits
+        .hits
+        .into_iter()
+        .map(|h| h.source)
+        .collect(); // recuperation de la partie "_source" du doc ElasticSearch
 
     Ok(Json(hits))
-
 }
 
 #[openapi]
 #[post("/recette", data = "<recette>")]
-pub async fn post_recette(app : &State<App>, recette: Json<Root>)-> Result<String,BadRequest<String>> {
+pub async fn post_recette(app: &State<App>, recette: Json<Root>) -> Result<String, Custom<String>> {
     let document = recette.into_inner();
     let client = &app.elasticsearch;
 
@@ -63,14 +72,29 @@ pub async fn post_recette(app : &State<App>, recette: Json<Root>)-> Result<Strin
         .send()
         .await;
 
+    // gestion des erreurs
     match post_document {
-        Ok(t) => {
-            rocket::serde::__private::Result::Ok(t.status_code().to_string())
-        },
-        Err(e) => {
-            rocket::serde::__private::Result::Err(BadRequest(Some(e.to_string())))
-        }
+        Ok(_) => Ok("Upload document".to_string()),
+        Err(e) => Err(Custom(Status::InternalServerError, e.to_string())),
     }
 }
 
+impl<'r> Responder<'r, 'static> for ApiError {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
+        let mut builder = response::Response::build();
+        builder.header(ContentType::Plain);
+        match self {
+            ApiError::Elastic(_) => {}
+        }
+        builder.ok()
+    }
+}
 
+impl OpenApiResponderInner for ApiError {
+    fn responses(gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
+        let responses = Responses::default();
+        // let schema = gen.json_schema::<String>();
+        // rocket_okapi::util::add_schema_response(&mut responses, 200, "text/plain", schema)?;
+        Ok(responses)
+    }
+}

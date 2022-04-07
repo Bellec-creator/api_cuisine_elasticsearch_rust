@@ -1,18 +1,13 @@
 use dotenv::dotenv;
-use std::env;
-use elasticsearch::{
-    Elasticsearch,
-    Error,
-    http::transport::Transport,
-    auth::Credentials,
-};
 use elasticsearch::http::transport::{SingleNodeConnectionPool, TransportBuilder};
 use elasticsearch::http::Url;
+use elasticsearch::Elasticsearch;
+use std::env;
 
-pub fn client() -> Result<Elasticsearch, Error>{
+pub fn client() -> anyhow::Result<Elasticsearch> {
     dotenv().ok();
-    let connect = env::var("URL_DATABASE").unwrap();
-    let url = Url::parse(&connect).unwrap();
+    let connect = env::var("URL_DATABASE")?;
+    let url = Url::parse(&connect)?;
     let pool = SingleNodeConnectionPool::new(url);
     let transport = TransportBuilder::new(pool).disable_proxy().build()?;
     let client_elastic = Elasticsearch::new(transport);

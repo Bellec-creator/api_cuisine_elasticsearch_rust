@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
 
     // documentation swagger
 
-    let urls = vec![UrlObject::new("recette", "/api/openapi.json")];
+    let urls = vec![UrlObject::new("recette", "/openapi.json")];
     let loader = loader
         .mount(
             "/doc/swagger",

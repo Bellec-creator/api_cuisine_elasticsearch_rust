@@ -57,12 +57,15 @@ pub async fn get_recette(app: &State<App>, ingrediant: &str) -> Result<Json<Vec<
         .send()
         .await;
     let response_body = search_response?.json::<OkResponse<Root>>().await?; // recupération de la recette
+    println!("{:?}", response_body);
     let hits = response_body
         .hits
         .hits
         .into_iter()
         .map(|h| h.source)
         .collect(); // recuperation de la partie "_source" du doc ElasticSearch
+
+
 
     Ok(Json(hits))
 }

@@ -83,15 +83,19 @@ impl<'r> Responder<'r, 'static> for ApiError {
     fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
         let mut builder = response::Response::build();
         builder.header(ContentType::Plain);
+        builder.status(Status::InternalServerError);
         match self {
-            ApiError::Elastic(_) => {}
+            ApiError::Elastic(e) => {
+                let s = e.to_string();
+                builder.sized_body(s.len(), std::io::Cursor::new(s));
+            }
         }
         builder.ok()
     }
 }
 
 impl OpenApiResponderInner for ApiError {
-    fn responses(gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
+    fn responses(_gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
         let responses = Responses::default();
         // let schema = gen.json_schema::<String>();
         // rocket_okapi::util::add_schema_response(&mut responses, 200, "text/plain", schema)?;

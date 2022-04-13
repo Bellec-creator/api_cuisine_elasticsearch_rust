@@ -28,8 +28,15 @@ pub fn load_route(
     loader: rocket::Rocket<rocket::Build>,
     _settings: &OpenApiSettings,
 ) -> rocket::Rocket<rocket::Build> {
-    loader.mount("/api", openapi_get_routes![get_recette, post_recette]) //montage des route sur /api
+    loader.mount("/", openapi_get_routes![route_root, get_recette, post_recette]) //montage des route sur /api
 }
+#[openapi]
+#[get("/")]
+pub async fn route_root() -> &'static str {
+    let response = "rocket ok";
+    return response
+}
+
 
 #[openapi] // nécessaires pour faire apparaître la route dans le swagger
 #[get("/recette?<ingrediant>")] // definition du endpoint

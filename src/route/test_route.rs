@@ -39,8 +39,8 @@ pub async fn route_root() -> &'static str {
 
 
 #[openapi] // nécessaires pour faire apparaître la route dans le swagger
-#[get("/recette?<ingrediant>")] // definition du endpoint
-pub async fn get_recette(app: &State<App>, ingrediant: &str) -> Result<Json<Vec<Root>>, ApiError> {
+#[get("/recette?<ingredient>")] // definition du endpoint
+pub async fn get_recette(app: &State<App>, ingredient: &str) -> Result<Json<Vec<Root>>, ApiError> {
     let client = &app.elasticsearch; // recuperation du state
     let search_response = client // creation de la requête
         .search(SearchParts::Index(&["recettes"]))
@@ -48,7 +48,7 @@ pub async fn get_recette(app: &State<App>, ingrediant: &str) -> Result<Json<Vec<
             "query": {
                 "match": {
                     "ingredient.name": {
-                        "query" : ingrediant,
+                        "query" : ingredient,
                         "fuzziness" : "AUTO"
                     }
                 }
@@ -57,16 +57,12 @@ pub async fn get_recette(app: &State<App>, ingrediant: &str) -> Result<Json<Vec<
         .send()
         .await;
     let response_body = search_response?.json::<OkResponse<Root>>().await?; // recupération de la recette
-    println!("{:?}", response_body);
     let hits = response_body
         .hits
         .hits
         .into_iter()
         .map(|h| h.source)
         .collect(); // recuperation de la partie "_source" du doc ElasticSearch
-
-
-
     Ok(Json(hits))
 }
 
